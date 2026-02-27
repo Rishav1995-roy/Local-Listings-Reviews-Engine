@@ -597,37 +597,37 @@ Use the place ID from Step 2. Replace `PLACE_ID` and `USER_TOKEN` with your valu
 curl -s -X POST http://localhost:3000/api/v1/reviews \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer USER_TOKEN" \
-  -d '{"placeId":"PLACE_ID","rating":5,"body":"Amazing croissants and fresh bread every morning. The staff is warm and the pricing is fair. Will come back every week!"}' | jq '{id:.data.id, status:.data.status}'
+  -d '{"placeId":"PLACE_ID","rating":5,"text":"Amazing croissants and fresh bread every morning. The staff is warm and the pricing is fair. Will come back every week!"}' | jq '{id:.data.id, status:.data.status}'
 
 # 2. SPAM → REJECTED  (QuickLoan scam keywords)
 curl -s -X POST http://localhost:3000/api/v1/reviews \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer USER_TOKEN" \
-  -d '{"placeId":"PLACE_ID","rating":5,"body":"Click here for a free offer! Buy now, limited time deal. Subscribe to get 50% off today!"}' | jq '{id:.data.id, status:.data.status}'
+  -d '{"placeId":"PLACE_ID","rating":5,"text":"Click here for a free offer! Buy now, limited time deal. Subscribe to get 50% off today!"}' | jq '{id:.data.id, status:.data.status}'
 
 # 3. SELF_PROMO → REJECTED  (Digital Growth Experts promotional text)
 curl -s -X POST http://localhost:3000/api/v1/reviews \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer USER_TOKEN" \
-  -d '{"placeId":"PLACE_ID","rating":5,"body":"Visit us at my business for great deals. Check us out at our store, we have the best offers in town!"}' | jq '{id:.data.id, status:.data.status}'
+  -d '{"placeId":"PLACE_ID","rating":5,"text":"Visit us at my business for great deals. Check us out at our store, we have the best offers in town!"}' | jq '{id:.data.id, status:.data.status}'
 
 # 4. MEDICAL_RISK → FLAGGED  (Local Wellness Center unsafe claims)
 curl -s -X POST http://localhost:3000/api/v1/reviews \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer USER_TOKEN" \
-  -d '{"placeId":"PLACE_ID","rating":4,"body":"This place has a special treatment that heals chronic pain. Doctor recommended their cure and it worked for my medical condition!"}' | jq '{id:.data.id, status:.data.status}'
+  -d '{"placeId":"PLACE_ID","rating":4,"text":"This place has a special treatment that heals chronic pain. Doctor recommended their cure and it worked for my medical condition!"}' | jq '{id:.data.id, status:.data.status}'
 
 # 5. TOXIC → REJECTED  (Sunrise Therapy Center — aggressive language)
 curl -s -X POST http://localhost:3000/api/v1/reviews \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer USER_TOKEN" \
-  -d '{"placeId":"PLACE_ID","rating":1,"body":"This is the worst ever experience. The staff is disgusting and terrible. Pure garbage service, I hate this place!"}' | jq '{id:.data.id, status:.data.status}'
+  -d '{"placeId":"PLACE_ID","rating":1,"text":"This is the worst ever experience. The staff is disgusting and terrible. Pure garbage service, I hate this place!"}' | jq '{id:.data.id, status:.data.status}'
 
 # 6. NEEDS_HUMAN_REVIEW → FLAGGED  (too short)
 curl -s -X POST http://localhost:3000/api/v1/reviews \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer USER_TOKEN" \
-  -d '{"placeId":"PLACE_ID","rating":3,"body":"It was okay."}' | jq '{id:.data.id, status:.data.status}'
+  -d '{"placeId":"PLACE_ID","rating":3,"text":"It was okay."}' | jq '{id:.data.id, status:.data.status}'
 ```
 
 > **How to observe moderation:** Reviews are created as `PENDING` and processed asynchronously by BullMQ (50–300ms mock latency). Wait ~1 second then fetch the review:
@@ -644,7 +644,7 @@ curl -s -X POST http://localhost:3000/api/v1/reviews \
 curl -s "http://localhost:3000/api/v1/feed?city=Bangalore&category=bakery" | jq '.data.items[] | {rating:.rating, status:.status, score:.rankingScore}'
 
 # Delhi all-category feed
-curl -s "http://localhost:3000/api/v1/feed?city=Delhi" | jq '.data.items[].place.name'
+curl -s "http://localhost:3000/api/v1/feed?city=Delhi" | jq '.data.items[].placeName'
 ```
 
 **Expected:** Only the `safe → APPROVED` review appears. Spam/toxic/flagged reviews are excluded.
