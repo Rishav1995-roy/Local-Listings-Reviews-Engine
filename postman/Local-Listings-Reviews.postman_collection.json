@@ -1,0 +1,917 @@
+{
+  "info": {
+    "name": "Local Listings + Reviews API",
+    "description": "Complete API collection for Local Listings & Reviews Engine.\n\nSetup:\n1. Import this collection AND the environment file (Local-Listings.postman_environment.json)\n2. Select 'Local Listings — Local Dev' environment from the top-right dropdown\n3. Run 'Register User' → 'Login' — tokens auto-save via test scripts\n4. Run 'Create Place' → placeId auto-saves → run 'Create Review'",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "http://localhost:3000/health", "protocol": "http", "host": ["localhost"], "port": "3000", "path": ["health"] }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": \"ok\",\n  \"env\": \"development\",\n  \"timestamp\": \"2026-02-27T10:00:00.000Z\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.environment.set('accessToken', body.data.tokens.accessToken);",
+                  "  pm.environment.set('refreshToken', body.data.tokens.refreshToken);",
+                  "  pm.environment.set('userId', body.data.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+          },
+          "response": [
+            {
+              "name": "201 Created — User registered",
+              "status": "Created", "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"user\": {\n      \"id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n      \"email\": \"user@example.com\",\n      \"name\": \"Test User\",\n      \"roles\": [\"USER\"]\n    },\n    \"tokens\": {\n      \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n      \"refreshToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\"\n    }\n  }\n}"
+            },
+            {
+              "name": "400 Bad Request — Validation error",
+              "status": "Bad Request", "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"errors\": [\n    { \"field\": \"password\", \"message\": \"Password must be at least 8 characters\" },\n    { \"field\": \"email\", \"message\": \"Invalid email address\" }\n  ]\n}"
+            },
+            {
+              "name": "409 Conflict — Email already registered",
+              "status": "Conflict", "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Email already in use\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Register Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.environment.set('adminToken', body.data.tokens.accessToken);",
+                  "  pm.environment.set('adminRefreshToken', body.data.tokens.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Admin User\",\n  \"email\": \"admin@example.com\",\n  \"password\": \"AdminPass123!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+          },
+          "response": [
+            {
+              "name": "201 Created — Admin registered (promote via SQL after)",
+              "status": "Created", "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"user\": {\n      \"id\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n      \"email\": \"admin@example.com\",\n      \"name\": \"Admin User\",\n      \"roles\": [\"USER\"]\n    },\n    \"tokens\": {\n      \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n      \"refreshToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\"\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.environment.set('accessToken', body.data.tokens.accessToken);",
+                  "  pm.environment.set('refreshToken', body.data.tokens.refreshToken);",
+                  "  pm.environment.set('userId', body.data.user.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          },
+          "response": [
+            {
+              "name": "200 OK — Login success",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"user\": {\n      \"id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n      \"email\": \"user@example.com\",\n      \"name\": \"Test User\",\n      \"roles\": [\"USER\"]\n    },\n    \"tokens\": {\n      \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n      \"refreshToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\"\n    }\n  }\n}"
+            },
+            {
+              "name": "401 Unauthorized — Wrong password",
+              "status": "Unauthorized", "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid email or password\"\n}"
+            },
+            {
+              "name": "404 Not Found — User does not exist",
+              "status": "Not Found", "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid email or password\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.environment.set('accessToken', body.data.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/refresh", "host": ["{{baseUrl}}"], "path": ["auth", "refresh"] }
+          },
+          "response": [
+            {
+              "name": "200 OK — New access token",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\"\n  }\n}"
+            },
+            {
+              "name": "401 Unauthorized — Expired or invalid refresh token",
+              "status": "Unauthorized", "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid or expired refresh token\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/users/me", "host": ["{{baseUrl}}"], "path": ["users", "me"] }
+          },
+          "response": [
+            {
+              "name": "200 OK — Own profile",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"email\": \"user@example.com\",\n    \"name\": \"Test User\",\n    \"avatarUrl\": null,\n    \"roles\": [\"USER\"],\n    \"createdAt\": \"2026-02-27T10:00:00.000Z\"\n  }\n}"
+            },
+            {
+              "name": "401 Unauthorized — Missing or invalid token",
+              "status": "Unauthorized", "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Authentication required\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get User by ID (Public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/users/{{userId}}", "host": ["{{baseUrl}}"], "path": ["users", "{{userId}}"] }
+          },
+          "response": [
+            {
+              "name": "200 OK — Public profile",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"name\": \"Test User\",\n    \"avatarUrl\": null,\n    \"createdAt\": \"2026-02-27T10:00:00.000Z\",\n    \"_count\": { \"reviews\": 3 }\n  }\n}"
+            },
+            {
+              "name": "404 Not Found — User does not exist",
+              "status": "Not Found", "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"User not found\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "List Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/categories", "host": ["{{baseUrl}}"], "path": ["categories"] }
+          },
+          "response": [
+            {
+              "name": "200 OK — Category list",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    { \"id\": \"cat-1\", \"slug\": \"bakery\", \"name\": \"Bakery\", \"description\": \"Bread, pastries and cakes\" },\n    { \"id\": \"cat-2\", \"slug\": \"restaurant\", \"name\": \"Restaurant\", \"description\": \"Dine-in food establishments\" },\n    { \"id\": \"cat-3\", \"slug\": \"clinic\", \"name\": \"Clinic\", \"description\": \"Medical and health clinics\" },\n    { \"id\": \"cat-4\", \"slug\": \"hotel\", \"name\": \"Hotel\", \"description\": \"Accommodation and lodging\" }\n  ]\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Places",
+      "item": [
+        {
+          "name": "List Places",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/places?city=Bangalore&category=bakery&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["places"],
+              "query": [
+                { "key": "city", "value": "Bangalore" },
+                { "key": "category", "value": "bakery" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK — Place list",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"items\": [\n      {\n        \"id\": \"place-uuid-1\",\n        \"name\": \"Sweet Oven Bakery\",\n        \"normalizedName\": \"sweet oven bakery bangalore\",\n        \"address\": \"12 MG Road\",\n        \"city\": \"Bangalore\",\n        \"state\": \"Karnataka\",\n        \"country\": \"India\",\n        \"category\": \"bakery\",\n        \"status\": \"ACTIVE\",\n        \"needsMergeReview\": false,\n        \"createdAt\": \"2026-02-27T10:00:00.000Z\",\n        \"_count\": { \"reviews\": 5 }\n      }\n    ],\n    \"total\": 1,\n    \"page\": 1,\n    \"limit\": 10,\n    \"totalPages\": 1\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Place — Sweet Oven Bakery (new)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.environment.set('placeId', body.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sweet Oven Bakery\",\n  \"address\": \"12 MG Road\",\n  \"city\": \"Bangalore\",\n  \"state\": \"Karnataka\",\n  \"country\": \"India\",\n  \"category\": \"bakery\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/places", "host": ["{{baseUrl}}"], "path": ["places"] }
+          },
+          "response": [
+            {
+              "name": "201 Created — New place",
+              "status": "Created", "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"place-uuid-1\",\n    \"name\": \"Sweet Oven Bakery\",\n    \"normalizedName\": \"sweet oven bakery bangalore\",\n    \"city\": \"Bangalore\",\n    \"category\": \"bakery\",\n    \"status\": \"ACTIVE\",\n    \"needsMergeReview\": false,\n    \"wasDeduped\": false,\n    \"createdAt\": \"2026-02-27T10:00:00.000Z\"\n  }\n}"
+            },
+            {
+              "name": "200 OK — Deduplicated (existing place returned)",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"place-uuid-1\",\n    \"name\": \"Sweet Oven Bakery\",\n    \"city\": \"Bangalore\",\n    \"category\": \"bakery\",\n    \"status\": \"ACTIVE\",\n    \"wasDeduped\": true,\n    \"similarityScore\": 0.94\n  }\n}"
+            },
+            {
+              "name": "401 Unauthorized — Not logged in",
+              "status": "Unauthorized", "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Authentication required\"\n}"
+            },
+            {
+              "name": "400 Bad Request — Missing required fields",
+              "status": "Bad Request", "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"errors\": [\n    { \"field\": \"city\", \"message\": \"City is required\" },\n    { \"field\": \"category\", \"message\": \"Category is required\" }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Place — Sweet-Oven Bakery (dedup variant)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sweet-Oven Bakery\",\n  \"address\": \"12 MG Road\",\n  \"city\": \"Bangalore\",\n  \"state\": \"Karnataka\",\n  \"country\": \"India\",\n  \"category\": \"bakery\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/places", "host": ["{{baseUrl}}"], "path": ["places"] }
+          },
+          "response": [
+            {
+              "name": "200 OK — Deduped (same place returned, wasDeduped=true)",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"place-uuid-1\",\n    \"name\": \"Sweet Oven Bakery\",\n    \"city\": \"Bangalore\",\n    \"category\": \"bakery\",\n    \"status\": \"ACTIVE\",\n    \"wasDeduped\": true,\n    \"similarityScore\": 0.91\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Place — Dr Sharma Clinic (will flag for merge)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dr Sharma Pediatric Clinic\",\n  \"address\": \"5 FC Road\",\n  \"city\": \"Pune\",\n  \"state\": \"Maharashtra\",\n  \"country\": \"India\",\n  \"category\": \"clinic\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/places", "host": ["{{baseUrl}}"], "path": ["places"] }
+          },
+          "response": [
+            {
+              "name": "201 Created — New place with NEEDS_MERGE_REVIEW",
+              "status": "Created", "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"place-uuid-2\",\n    \"name\": \"Dr Sharma Pediatric Clinic\",\n    \"city\": \"Pune\",\n    \"category\": \"clinic\",\n    \"status\": \"NEEDS_MERGE_REVIEW\",\n    \"needsMergeReview\": true,\n    \"wasDeduped\": false\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Place by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/places/{{placeId}}", "host": ["{{baseUrl}}"], "path": ["places", "{{placeId}}"] }
+          },
+          "response": [
+            {
+              "name": "200 OK — Place detail",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"place-uuid-1\",\n    \"name\": \"Sweet Oven Bakery\",\n    \"address\": \"12 MG Road\",\n    \"city\": \"Bangalore\",\n    \"state\": \"Karnataka\",\n    \"country\": \"India\",\n    \"category\": \"bakery\",\n    \"status\": \"ACTIVE\",\n    \"createdAt\": \"2026-02-27T10:00:00.000Z\",\n    \"_count\": { \"reviews\": 3 }\n  }\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "status": "Not Found", "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Place not found\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Reviews",
+      "item": [
+        {
+          "name": "Create Review — Safe (will be APPROVED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.environment.set('reviewId', body.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"placeId\": \"{{placeId}}\",\n  \"rating\": 5,\n  \"body\": \"Amazing croissants and fresh bread every morning! The staff is incredibly warm and the pricing is very fair. The ambiance makes it perfect for a morning coffee. Will absolutely come back every week!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/reviews", "host": ["{{baseUrl}}"], "path": ["reviews"] }
+          },
+          "response": [
+            {
+              "name": "201 Created — Review pending moderation",
+              "status": "Created", "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"review-uuid-1\",\n    \"placeId\": \"place-uuid-1\",\n    \"userId\": \"user-uuid-1\",\n    \"rating\": 5,\n    \"body\": \"Amazing croissants and fresh bread every morning...\",\n    \"status\": \"PENDING\",\n    \"aiLabel\": null,\n    \"aiSummary\": null,\n    \"aiScore\": null,\n    \"helpfulCount\": 0,\n    \"createdAt\": \"2026-02-27T10:05:00.000Z\"\n  }\n}"
+            },
+            {
+              "name": "After ~1s: GET review → APPROVED",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"review-uuid-1\",\n    \"status\": \"APPROVED\",\n    \"aiLabel\": \"SAFE\",\n    \"aiScore\": 0.92,\n    \"aiSummary\": \"Amazing croissants and fresh bread every morning! The staff is incredibly warm…\",\n    \"tags\": [{ \"tag\": { \"name\": \"freshness\" } }, { \"tag\": { \"name\": \"taste\" } }]\n  }\n}"
+            },
+            {
+              "name": "400 Bad Request — Validation error",
+              "status": "Bad Request", "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"errors\": [\n    { \"field\": \"rating\", \"message\": \"Rating must be between 1 and 5\" },\n    { \"field\": \"body\", \"message\": \"Review body must be at least 10 characters\" }\n  ]\n}"
+            },
+            {
+              "name": "401 Unauthorized — Not logged in",
+              "status": "Unauthorized", "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Authentication required\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Review — Spam (will be REJECTED)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"placeId\": \"{{placeId}}\",\n  \"rating\": 5,\n  \"body\": \"Click here for a free offer! Buy now before the limited time deal expires. Subscribe today and get 50% off your first order!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/reviews", "host": ["{{baseUrl}}"], "path": ["reviews"] }
+          },
+          "response": [
+            {
+              "name": "201 Created — PENDING (becomes REJECTED after ~1s)",
+              "status": "Created", "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": { \"id\": \"review-uuid-2\", \"status\": \"PENDING\" }\n}"
+            },
+            {
+              "name": "After ~1s: GET review → REJECTED (SPAM)",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"review-uuid-2\",\n    \"status\": \"REJECTED\",\n    \"aiLabel\": \"SPAM\",\n    \"aiScore\": 0.87,\n    \"aiSummary\": \"Click here for a free offer! Buy now before the limited time deal…\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Review — Self-Promo (will be REJECTED)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"placeId\": \"{{placeId}}\",\n  \"rating\": 5,\n  \"body\": \"Visit us at my business for amazing deals! Check us out at our store today, we have the best prices in town!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/reviews", "host": ["{{baseUrl}}"], "path": ["reviews"] }
+          },
+          "response": [
+            {
+              "name": "After ~1s: GET review → REJECTED (SELF_PROMO)",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"review-uuid-3\",\n    \"status\": \"REJECTED\",\n    \"aiLabel\": \"SELF_PROMO\",\n    \"aiScore\": 0.82\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Review — Medical Risk (will be FLAGGED)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"placeId\": \"{{placeId}}\",\n  \"rating\": 4,\n  \"body\": \"This place has a special treatment that heals chronic pain completely. Doctor recommended their clinical cure and it worked for my medical condition!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/reviews", "host": ["{{baseUrl}}"], "path": ["reviews"] }
+          },
+          "response": [
+            {
+              "name": "After ~1s: GET review → FLAGGED (MEDICAL_RISK)",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"review-uuid-4\",\n    \"status\": \"FLAGGED\",\n    \"aiLabel\": \"MEDICAL_RISK\",\n    \"aiScore\": 0.90,\n    \"aiSummary\": \"This place has a special treatment that heals chronic pain completely…\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Review — Toxic (will be REJECTED)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"placeId\": \"{{placeId}}\",\n  \"rating\": 1,\n  \"body\": \"This is the worst ever experience I have had. The service is disgusting and terrible. Pure garbage, I absolutely hate this place!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/reviews", "host": ["{{baseUrl}}"], "path": ["reviews"] }
+          },
+          "response": [
+            {
+              "name": "After ~1s: GET review → REJECTED (TOXIC)",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"review-uuid-5\",\n    \"status\": \"REJECTED\",\n    \"aiLabel\": \"TOXIC\",\n    \"aiScore\": 0.95\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Review — Short (will be FLAGGED)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"placeId\": \"{{placeId}}\",\n  \"rating\": 3,\n  \"body\": \"It was okay.\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/reviews", "host": ["{{baseUrl}}"], "path": ["reviews"] }
+          },
+          "response": [
+            {
+              "name": "After ~1s: GET review → FLAGGED (NEEDS_HUMAN_REVIEW)",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"review-uuid-6\",\n    \"status\": \"FLAGGED\",\n    \"aiLabel\": \"NEEDS_HUMAN_REVIEW\",\n    \"aiScore\": 0.60\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Review — With Image (multipart)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "placeId", "value": "{{placeId}}", "type": "text" },
+                { "key": "rating", "value": "5", "type": "text" },
+                { "key": "body", "value": "Fantastic place with amazing pastries! The ambiance is warm and the service is top-notch. Great value for the quality you get.", "type": "text" },
+                { "key": "files", "type": "file", "src": [], "description": "Attach up to 10 images (JPEG/PNG/WebP, max 5MB each)" }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}/reviews", "host": ["{{baseUrl}}"], "path": ["reviews"] }
+          },
+          "response": [
+            {
+              "name": "201 Created — Review with S3 media links",
+              "status": "Created", "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"review-uuid-7\",\n    \"status\": \"PENDING\",\n    \"media\": [\n      {\n        \"id\": \"media-uuid-1\",\n        \"s3Key\": \"reviews/review-uuid-7/photo-1.jpg\",\n        \"url\": \"https://local-listings-media.s3.ap-south-1.amazonaws.com/reviews/review-uuid-7/photo-1.jpg?X-Amz-Signature=...\",\n        \"mimeType\": \"image/jpeg\",\n        \"sizeBytes\": 204800\n      }\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "List Reviews (by Place)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reviews?placeId={{placeId}}&page=1&limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["reviews"],
+              "query": [
+                { "key": "placeId", "value": "{{placeId}}" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK — Paginated reviews",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"items\": [\n      {\n        \"id\": \"review-uuid-1\",\n        \"rating\": 5,\n        \"body\": \"Amazing croissants and fresh bread...\",\n        \"status\": \"APPROVED\",\n        \"aiLabel\": \"SAFE\",\n        \"helpfulCount\": 2,\n        \"createdAt\": \"2026-02-27T10:05:00.000Z\",\n        \"user\": { \"id\": \"user-uuid-1\", \"name\": \"Test User\" },\n        \"tags\": [{ \"tag\": { \"name\": \"freshness\" } }]\n      }\n    ],\n    \"total\": 1,\n    \"page\": 1,\n    \"limit\": 10,\n    \"totalPages\": 1\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Review by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/reviews/{{reviewId}}", "host": ["{{baseUrl}}"], "path": ["reviews", "{{reviewId}}"] }
+          },
+          "response": [
+            {
+              "name": "200 OK — Review detail",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"review-uuid-1\",\n    \"rating\": 5,\n    \"body\": \"Amazing croissants and fresh bread every morning!\",\n    \"status\": \"APPROVED\",\n    \"aiLabel\": \"SAFE\",\n    \"aiScore\": 0.92,\n    \"aiSummary\": \"Amazing croissants and fresh bread every morning!\",\n    \"helpfulCount\": 2,\n    \"createdAt\": \"2026-02-27T10:05:00.000Z\",\n    \"user\": { \"id\": \"user-uuid-1\", \"name\": \"Test User\", \"avatarUrl\": null },\n    \"place\": { \"id\": \"place-uuid-1\", \"name\": \"Sweet Oven Bakery\", \"city\": \"Bangalore\" },\n    \"media\": [],\n    \"tags\": [{ \"tag\": { \"name\": \"freshness\" } }, { \"tag\": { \"name\": \"taste\" } }]\n  }\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "status": "Not Found", "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Review not found\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Feed",
+      "item": [
+        {
+          "name": "Get Ranked Feed — Bangalore Bakeries",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/feed?city=Bangalore&category=bakery&page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["feed"],
+              "query": [
+                { "key": "city", "value": "Bangalore" },
+                { "key": "category", "value": "bakery" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK — Ranked feed (APPROVED only, sorted by score)",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"items\": [\n      {\n        \"id\": \"review-uuid-1\",\n        \"rating\": 5,\n        \"body\": \"Amazing croissants and fresh bread every morning!\",\n        \"status\": \"APPROVED\",\n        \"aiLabel\": \"SAFE\",\n        \"helpfulCount\": 10,\n        \"rankingScore\": 0.814,\n        \"createdAt\": \"2026-02-27T10:05:00.000Z\",\n        \"place\": { \"id\": \"place-uuid-1\", \"name\": \"Sweet Oven Bakery\", \"city\": \"Bangalore\", \"category\": \"bakery\" },\n        \"user\": { \"id\": \"user-uuid-1\", \"name\": \"Test User\" },\n        \"tags\": [{ \"tag\": { \"name\": \"freshness\" } }, { \"tag\": { \"name\": \"taste\" } }]\n      }\n    ],\n    \"total\": 1,\n    \"page\": 1,\n    \"limit\": 20,\n    \"totalPages\": 1\n  }\n}"
+            },
+            {
+              "name": "400 Bad Request — Missing city",
+              "status": "Bad Request", "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Validation failed\",\n  \"errors\": [{ \"field\": \"city\", \"message\": \"city is required\" }]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Feed — Delhi (all categories)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/feed?city=Delhi&page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["feed"],
+              "query": [
+                { "key": "city", "value": "Delhi" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK — Empty feed (no approved reviews yet)",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"items\": [],\n    \"total\": 0,\n    \"page\": 1,\n    \"limit\": 20,\n    \"totalPages\": 0\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Get Moderation Queue (FLAGGED reviews)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/moderation-queue?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "moderation-queue"],
+              "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "20" }]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK — FLAGGED reviews (oldest first)",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"items\": [\n      {\n        \"id\": \"review-uuid-4\",\n        \"body\": \"This place has a special treatment that heals chronic pain...\",\n        \"status\": \"FLAGGED\",\n        \"aiLabel\": \"MEDICAL_RISK\",\n        \"aiScore\": 0.90,\n        \"createdAt\": \"2026-02-27T10:10:00.000Z\",\n        \"user\": { \"id\": \"user-uuid-1\", \"name\": \"Test User\", \"email\": \"user@example.com\" },\n        \"place\": { \"id\": \"place-uuid-1\", \"name\": \"Sweet Oven Bakery\", \"city\": \"Bangalore\" },\n        \"moderationJobs\": [{ \"jobId\": \"job-123\", \"result\": { \"provider\": \"mock\" }, \"createdAt\": \"2026-02-27T10:10:01.000Z\" }]\n      }\n    ],\n    \"total\": 2,\n    \"page\": 1,\n    \"limit\": 20,\n    \"totalPages\": 1\n  }\n}"
+            },
+            {
+              "name": "403 Forbidden — Not an admin",
+              "status": "Forbidden", "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Insufficient permissions\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Approve Review",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"note\": \"Medical claim reviewed — content is safe for publishing\"\n}" },
+            "url": { "raw": "{{baseUrl}}/admin/reviews/{{reviewId}}/approve", "host": ["{{baseUrl}}"], "path": ["admin", "reviews", "{{reviewId}}", "approve"] }
+          },
+          "response": [
+            {
+              "name": "200 OK — Review approved",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Review approved\",\n  \"data\": {\n    \"id\": \"review-uuid-4\",\n    \"status\": \"APPROVED\",\n    \"moderatedBy\": \"admin-uuid-1\",\n    \"moderatedAt\": \"2026-02-27T10:15:00.000Z\",\n    \"moderationNote\": \"Medical claim reviewed — content is safe for publishing\"\n  }\n}"
+            },
+            {
+              "name": "404 Not Found — Review does not exist",
+              "status": "Not Found", "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Review not found\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Reject Review",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"note\": \"Violates community guidelines — promotional spam content\"\n}" },
+            "url": { "raw": "{{baseUrl}}/admin/reviews/{{reviewId}}/reject", "host": ["{{baseUrl}}"], "path": ["admin", "reviews", "{{reviewId}}", "reject"] }
+          },
+          "response": [
+            {
+              "name": "200 OK — Review rejected",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Review rejected\",\n  \"data\": {\n    \"id\": \"review-uuid-2\",\n    \"status\": \"REJECTED\",\n    \"moderatedBy\": \"admin-uuid-1\",\n    \"moderatedAt\": \"2026-02-27T10:15:00.000Z\",\n    \"moderationNote\": \"Violates community guidelines — promotional spam content\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Places Merge Queue",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/places/merge-queue?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "places", "merge-queue"],
+              "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "20" }]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK — Places needing merge review",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"items\": [\n      {\n        \"id\": \"place-uuid-2\",\n        \"name\": \"Dr Sharma Pediatric Clinic\",\n        \"normalizedName\": \"dr sharma pediatric clinic pune\",\n        \"city\": \"Pune\",\n        \"status\": \"NEEDS_MERGE_REVIEW\",\n        \"needsMergeReview\": true,\n        \"createdAt\": \"2026-02-27T10:02:00.000Z\",\n        \"_count\": { \"reviews\": 0 }\n      },\n      {\n        \"id\": \"place-uuid-3\",\n        \"name\": \"Sharma Clinic Pune\",\n        \"normalizedName\": \"sharma clinic pune pune\",\n        \"city\": \"Pune\",\n        \"status\": \"NEEDS_MERGE_REVIEW\",\n        \"needsMergeReview\": true,\n        \"createdAt\": \"2026-02-27T10:03:00.000Z\",\n        \"_count\": { \"reviews\": 1 }\n      }\n    ],\n    \"total\": 2,\n    \"page\": 1,\n    \"limit\": 20,\n    \"totalPages\": 1\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Merge Duplicate Place",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"canonicalPlaceId\": \"{{placeId}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/admin/places/DUPLICATE_PLACE_ID/merge", "host": ["{{baseUrl}}"], "path": ["admin", "places", "DUPLICATE_PLACE_ID", "merge"] }
+          },
+          "response": [
+            {
+              "name": "200 OK — Places merged",
+              "status": "OK", "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Places merged successfully\",\n  \"data\": {\n    \"mergedPlaceId\": \"place-uuid-3\",\n    \"canonicalPlaceId\": \"place-uuid-2\",\n    \"message\": \"All reviews from 'Sharma Clinic Pune' reassigned to 'Dr Sharma Pediatric Clinic'\"\n  }\n}"
+            },
+            {
+              "name": "400 Bad Request — Cannot merge place into itself",
+              "status": "Bad Request", "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Cannot merge a place into itself\"\n}"
+            },
+            {
+              "name": "404 Not Found — Source or target place missing",
+              "status": "Not Found", "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Source place not found\"\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

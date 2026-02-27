@@ -1,0 +1,245 @@
+// =============================================================
+// Prisma Schema — Local Listings + Reviews Engine
+// =============================================================
+// Generator: @prisma/client (TypeScript)
+// Datasource : PostgreSQL (AWS RDS or local Docker)
+// =============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================
+// ENUMS
+// =============================================================
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ReviewStatus {
+  PENDING   // Waiting for AI moderation
+  APPROVED  // Passed moderation (AI + human if needed)
+  REJECTED  // Failed moderation
+  FLAGGED   // Needs human review
+}
+
+enum ModerationLabel {
+  SAFE
+  SPAM
+  TOXIC
+  SELF_PROMO
+  MEDICAL_RISK
+  NEEDS_HUMAN_REVIEW
+}
+
+enum PlaceStatus {
+  ACTIVE
+  NEEDS_MERGE_REVIEW // Potential duplicate found; pending admin action
+  MERGED             // Merged into another place record
+  INACTIVE
+}
+
+// =============================================================
+// USERS
+// =============================================================
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String
+  avatarUrl    String?  @map("avatar_url")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  roles        UserRole[]
+  reviews      Review[]
+  mediaUploads MediaUpload[]
+
+  @@map("users")
+  @@index([email])
+}
+
+model UserRole {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  role      Role
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@map("user_roles")
+  @@index([userId])
+}
+
+// =============================================================
+// CATEGORIES
+// Predefined lookup table for place categories.
+// Seeded via prisma/seed.ts. Slug is the API-facing identifier.
+// =============================================================
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique  // Human-readable, e.g. "Bakery"
+  slug        String   @unique  // URL-safe, e.g. "bakery"
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  places Place[]
+
+  @@map("categories")
+  @@index([slug])
+}
+
+// =============================================================
+// PLACES
+// =============================================================
+
+model Place {
+  id               String      @id @default(uuid())
+  name             String
+  normalizedName   String      @map("normalized_name") // Lowercased + stripped for trgm
+  city             String
+  state            String?
+  country          String      @default("IN")
+  // category stored as plain slug string for fast raw-SQL trgm queries;
+  // categoryId FK provides relational integrity when a known Category exists.
+  category         String?
+  categoryId       String?     @map("category_id")
+  address          String?
+  latitude         Decimal?    @db.Decimal(10, 8)
+  longitude        Decimal?    @db.Decimal(11, 8)
+  status           PlaceStatus @default(ACTIVE)
+  canonicalPlaceId String?     @map("canonical_place_id")
+  needsMergeReview Boolean     @default(false) @map("needs_merge_review")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+
+  category_rel   Category? @relation(fields: [categoryId], references: [id])
+  reviews        Review[]
+  canonicalPlace Place?    @relation("PlaceMerge", fields: [canonicalPlaceId], references: [id])
+  duplicates     Place[]   @relation("PlaceMerge")
+
+  @@map("places")
+  @@index([city, category])
+  @@index([status])
+  @@index([categoryId])
+}
+
+// =============================================================
+// TAGS
+// Normalised tag dictionary.  AI worker upserts tags here and
+// links them to reviews via the ReviewTag join table.
+// =============================================================
+
+model Tag {
+  id        String      @id @default(uuid())
+  name      String      @unique  // e.g. "food", "service", "ambiance"
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  reviews ReviewTag[]
+
+  @@map("tags")
+  @@index([name])
+}
+
+model ReviewTag {
+  reviewId String @map("review_id")
+  tagId    String @map("tag_id")
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId],    references: [id], onDelete: Cascade)
+
+  @@id([reviewId, tagId])
+  @@map("review_tags")
+}
+
+// =============================================================
+// REVIEWS
+// =============================================================
+
+model Review {
+  id          String       @id @default(uuid())
+  userId      String       @map("user_id")
+  placeId     String       @map("place_id")
+  rating      Int          // 1–5
+  text        String
+  status      ReviewStatus @default(PENDING)
+  // Populated by AI moderation worker
+  aiLabel     ModerationLabel? @map("ai_label")
+  aiSummary   String?     @map("ai_summary")
+  aiScore     Float?      @map("ai_score")      // Confidence 0.0–1.0
+  // Populated by human moderator
+  moderatedBy    String?   @map("moderated_by")
+  moderatedAt    DateTime? @map("moderated_at")
+  moderationNote String?   @map("moderation_note")
+  // Engagement
+  helpfulCount Int        @default(0) @map("helpful_count")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  user           User          @relation(fields: [userId],  references: [id])
+  place          Place         @relation(fields: [placeId], references: [id])
+  tags           ReviewTag[]
+  mediaItems     MediaUpload[]
+  moderationJobs ModerationJob[]
+
+  @@map("reviews")
+  @@index([placeId, status])
+  @@index([userId])
+  @@index([status, createdAt])
+  @@index([createdAt(sort: Desc)])
+}
+
+// =============================================================
+// MODERATION JOBS
+// =============================================================
+
+model ModerationJob {
+  id          String    @id @default(uuid())
+  reviewId    String    @map("review_id")
+  jobId       String?   @map("bull_job_id")
+  attempts    Int       @default(0)
+  result      Json?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  completedAt DateTime? @map("completed_at")
+  failedAt    DateTime? @map("failed_at")
+  error       String?
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@map("moderation_jobs")
+  @@index([reviewId])
+}
+
+// =============================================================
+// MEDIA UPLOADS
+// =============================================================
+
+model MediaUpload {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  reviewId   String?  @map("review_id")
+  s3Key      String   @map("s3_key")
+  s3Bucket   String   @map("s3_bucket")
+  url        String
+  mimeType   String   @map("mime_type")
+  sizeBytes  Int      @map("size_bytes")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user   User    @relation(fields: [userId],   references: [id])
+  review Review? @relation(fields: [reviewId], references: [id], onDelete: SetNull)
+
+  @@map("media_uploads")
+  @@index([userId])
+  @@index([reviewId])
+}
